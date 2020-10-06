@@ -11,12 +11,15 @@
 
 namespace Symfony\Component\Console\Style;
 
+use Symfony\Component\Console\Exception\InvalidArgumentException;
 use Symfony\Component\Console\Exception\RuntimeException;
 use Symfony\Component\Console\Formatter\OutputFormatter;
 use Symfony\Component\Console\Helper\Helper;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Helper\SymfonyQuestionHelper;
 use Symfony\Component\Console\Helper\Table;
+use Symfony\Component\Console\Helper\TableCell;
+use Symfony\Component\Console\Helper\TableSeparator;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -161,6 +164,16 @@ class SymfonyStyle extends OutputStyle
     }
 
     /**
+     * Formats an info message.
+     *
+     * @param string|array $message
+     */
+    public function info($message)
+    {
+        $this->block($message, 'INFO', 'fg=green', ' ', true);
+    }
+
+    /**
      * {@inheritdoc}
      */
     public function caution($message)
@@ -179,6 +192,69 @@ class SymfonyStyle extends OutputStyle
         $table = new Table($this);
         $table->setHeaders($headers);
         $table->setRows($rows);
+        $table->setStyle($style);
+
+        $table->render();
+        $this->newLine();
+    }
+
+    /**
+     * Formats a horizontal table.
+     */
+    public function horizontalTable(array $headers, array $rows)
+    {
+        $style = clone Table::getStyleDefinition('symfony-style-guide');
+        $style->setCellHeaderFormat('<info>%s</info>');
+
+        $table = new Table($this);
+        $table->setHeaders($headers);
+        $table->setRows($rows);
+        $table->setStyle($style);
+        $table->setHorizontal(true);
+
+        $table->render();
+        $this->newLine();
+    }
+
+    /**
+     * Formats a list of key/value horizontally.
+     *
+     * Each row can be one of:
+     * * 'A title'
+     * * ['key' => 'value']
+     * * new TableSeparator()
+     *
+     * @param string|array|TableSeparator ...$list
+     */
+    public function definitionList(...$list)
+    {
+        $style = clone Table::getStyleDefinition('symfony-style-guide');
+        $style->setCellHeaderFormat('<info>%s</info>');
+
+        $table = new Table($this);
+        $headers = [];
+        $row = [];
+        foreach ($list as $value) {
+            if ($value instanceof TableSeparator) {
+                $headers[] = $value;
+                $row[] = $value;
+                continue;
+            }
+            if (\is_string($value)) {
+                $headers[] = new TableCell($value, ['colspan' => 2]);
+                $row[] = null;
+                continue;
+            }
+            if (!\is_array($value)) {
+                throw new InvalidArgumentException('Value should be an array, string, or an instance of TableSeparator.');
+            }
+            $headers[] = key($value);
+            $row[] = current($value);
+        }
+
+        $table->setHeaders($headers);
+        $table->setRows([$row]);
+        $table->setHorizontal();
         $table->setStyle($style);
 
         $table->render();
@@ -224,7 +300,7 @@ class SymfonyStyle extends OutputStyle
     {
         if (null !== $default) {
             $values = array_flip($choices);
-            $default = $values[$default];
+            $default = isset($values[$default]) ? $values[$default] : $default;
         }
 
         return $this->askQuestion(new ChoiceQuestion($question, $choices, $default));
@@ -356,7 +432,7 @@ class SymfonyStyle extends OutputStyle
 
     private function autoPrependBlock(): void
     {
-        $chars = substr(str_replace(PHP_EOL, "\n", $this->bufferedOutput->fetch()), -2);
+        $chars = substr(str_replace(\PHP_EOL, "\n", $this->bufferedOutput->fetch()), -2);
 
         if (!isset($chars[0])) {
             $this->newLine(); //empty history, so we should start with a new line.
@@ -383,7 +459,7 @@ class SymfonyStyle extends OutputStyle
         $this->bufferedOutput->write(substr($message, -4), $newLine, $type);
     }
 
-    private function createBlock(iterable $messages, string $type = null, string $style = null, string $prefix = ' ', bool $padding = false, bool $escape = false)
+    private function createBlock(iterable $messages, string $type = null, string $style = null, string $prefix = ' ', bool $padding = false, bool $escape = false): array
     {
         $indentLength = 0;
         $prefixLength = Helper::strlenWithoutDecoration($this->getFormatter(), $prefix);
@@ -401,7 +477,7 @@ class SymfonyStyle extends OutputStyle
                 $message = OutputFormatter::escape($message);
             }
 
-            $lines = array_merge($lines, explode(PHP_EOL, wordwrap($message, $this->lineLength - $prefixLength - $indentLength, PHP_EOL, true)));
+            $lines = array_merge($lines, explode(\PHP_EOL, wordwrap($message, $this->lineLength - $prefixLength - $indentLength, \PHP_EOL, true)));
 
             if (\count($messages) > 1 && $key < \count($messages) - 1) {
                 $lines[] = '';

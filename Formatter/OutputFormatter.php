@@ -40,11 +40,9 @@ class OutputFormatter implements WrappableOutputFormatterInterface
     /**
      * Escapes trailing "\" in given text.
      *
-     * @return string Escaped text
-     *
      * @internal
      */
-    public static function escapeTrailingBackslash(string $text)
+    public static function escapeTrailingBackslash(string $text): string
     {
         if ('\\' === substr($text, -1)) {
             $len = \strlen($text);
@@ -115,7 +113,7 @@ class OutputFormatter implements WrappableOutputFormatterInterface
     public function getStyle(string $name)
     {
         if (!$this->hasStyle($name)) {
-            throw new InvalidArgumentException(sprintf('Undefined style: %s', $name));
+            throw new InvalidArgumentException(sprintf('Undefined style: "%s".', $name));
         }
 
         return $this->styles[strtolower($name)];
@@ -138,7 +136,7 @@ class OutputFormatter implements WrappableOutputFormatterInterface
         $output = '';
         $tagRegex = '[a-z][^<>]*+';
         $currentLineLength = 0;
-        preg_match_all("#<(($tagRegex) | /($tagRegex)?)>#ix", $message, $matches, PREG_OFFSET_CAPTURE);
+        preg_match_all("#<(($tagRegex) | /($tagRegex)?)>#ix", $message, $matches, \PREG_OFFSET_CAPTURE);
         foreach ($matches[0] as $i => $match) {
             $pos = $match[1];
             $text = $match[0];
@@ -161,7 +159,7 @@ class OutputFormatter implements WrappableOutputFormatterInterface
             if (!$open && !$tag) {
                 // </>
                 $this->styleStack->pop();
-            } elseif (false === $style = $this->createStyleFromString($tag)) {
+            } elseif (null === $style = $this->createStyleFromString($tag)) {
                 $output .= $this->applyCurrentStyle($text, $output, $width, $currentLineLength);
             } elseif ($open) {
                 $this->styleStack->push($style);
@@ -189,17 +187,15 @@ class OutputFormatter implements WrappableOutputFormatterInterface
 
     /**
      * Tries to create new style instance from string.
-     *
-     * @return OutputFormatterStyle|false False if string is not format string
      */
-    private function createStyleFromString(string $string)
+    private function createStyleFromString(string $string): ?OutputFormatterStyleInterface
     {
         if (isset($this->styles[$string])) {
             return $this->styles[$string];
         }
 
-        if (!preg_match_all('/([^=]+)=([^;]+)(;|$)/', $string, $matches, PREG_SET_ORDER)) {
-            return false;
+        if (!preg_match_all('/([^=]+)=([^;]+)(;|$)/', $string, $matches, \PREG_SET_ORDER)) {
+            return null;
         }
 
         $style = new OutputFormatterStyle();
@@ -220,7 +216,7 @@ class OutputFormatter implements WrappableOutputFormatterInterface
                     $style->setOption($option);
                 }
             } else {
-                return false;
+                return null;
             }
         }
 
